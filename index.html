@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Hockey Shootout - Cyber Edition</title>
+    <title>Carzzy Apps | Hockey Shootout</title>
     <style>
-        /* Updated to match your 0a0a0a and 00b1d2 theme */
         body { 
             font-family: 'Segoe UI', sans-serif; 
             background: #0a0a0a; 
@@ -15,6 +14,7 @@
             user-select: none; 
             margin: 0; 
             padding: 20px; 
+            overflow: hidden;
         }
 
         #stats { 
@@ -24,7 +24,7 @@
             background: #111; 
             padding: 15px; 
             border-radius: 4px; 
-            box-shadow: 0 0 15px rgba(0, 209, 178, 0.5); 
+            box-shadow: 0 0 15px rgba(0, 209, 178, 0.3); 
             margin-bottom: 15px; 
             border: 1px solid #00d1b2; 
         }
@@ -37,30 +37,28 @@
             cursor: crosshair; 
             overflow: hidden; 
             border-radius: 8px;
+            touch-action: none; /* Prevents scrolling on mobile while playing */
         }
 
         #net { 
-    width: 400px; height: 220px; 
-    border: 3px solid #00b1d2; /* Keeping your main theme for the frame */
-    border-bottom: none;
-    position: absolute; 
-    top: 10px; 
-    left: 100px; 
-    /* Checkered pattern logic */
-    background-color: #0a0a0a;
-    background-image:  
-        conic-gradient(#ff0000 90deg, #0a0a0a 90deg 180deg, #ff0000 180deg 270deg, #0a0a0a 270deg);
-    background-size: 20px 20px; /* Adjust size of squares here */
-    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
-}
-
+            width: 400px; height: 220px; 
+            border: 3px solid #00b1d2;
+            border-bottom: none;
+            position: absolute; 
+            top: 10px; 
+            left: 100px; 
+            background-color: #0a0a0a;
+            background-image: conic-gradient(#ff0000 90deg, #0a0a0a 90deg 180deg, #ff0000 180deg 270deg, #0a0a0a 270deg);
+            background-size: 20px 20px;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.8);
+        }
 
         #goalie { 
             width: 45px; height: 60px; 
             background: #00d1b2; 
             border-radius: 2px; 
             position: absolute; top: 140px; left: 277px; z-index: 10;
-            transition: all 0.4s ease-out;
+            transition: all 0.2s ease-out;
             box-shadow: 0 0 10px #00d1b2;
         }
 
@@ -76,8 +74,6 @@
             width: 610px; height: 8px; 
             background: #1a1a1a; 
             margin-top: 15px; 
-            border-radius: 0; 
-            overflow: hidden; 
             border: 1px solid #333;
         }
 
@@ -85,6 +81,7 @@
             width: 0%; height: 100%; 
             background: #00d1b2; 
             box-shadow: 0 0 15px #00d1b2;
+            transition: width 0.1s linear;
         }
 
         .val { color: #fff; font-weight: bold; }
@@ -95,18 +92,22 @@
             color: #00d1b2;
             text-transform: uppercase;
             letter-spacing: 2px;
+            text-align: center;
         }
+
+        .footer { margin-top: 20px; font-size: 0.8rem; opacity: 0.6; }
     </style>
 </head>
-<body>
+<body oncontextmenu="return false;">
 
     <div id="stats">
         <div>GOALS: <span id="current" class="val">0</span> / 10</div>
-        <div style="font-weight: 800;">EASY MODE</div>
+        <div style="font-weight: 800; letter-spacing: 1px;">HOCKEY SHOOTOUT</div>
         <div>BEST: <span id="record" class="val">0</span></div>
     </div>
 
-    <div id="rink" onmousedown="startCharge()" onmouseup="releaseShot(event)">
+    <!-- pointerdown/up used for better mobile/mouse compatibility -->
+    <div id="rink" onpointerdown="startCharge()" onpointerup="releaseShot(event)">
         <div id="net"></div>
         <div id="goalie"></div>
         <div id="puck"></div>
@@ -114,6 +115,8 @@
 
     <div id="power-container"><div id="power-bar"></div></div>
     <div id="msg">HOLD & RELEASE TO SHOOT</div>
+
+    <div class="footer">Avis & DeBus | v1.1.0 PRO</div>
 
     <script>
         const bgMusic = new Audio('https://github.com/CARZZYAPPS/music/raw/refs/heads/main/panthers%20goal%20song.mp3');
@@ -134,7 +137,10 @@
             isCharging = true;
             power = 0;
             chargeInterval = setInterval(() => {
-                if (power < 100) { power += 4; powerBar.style.width = power + '%'; }
+                if (power < 100) { 
+                    power += 4; 
+                    powerBar.style.width = power + '%'; 
+                }
             }, 25);
         }
 
@@ -149,14 +155,23 @@
             let tx = e.clientX - rect.left;
             let ty = e.clientY - rect.top;
 
-            puck.style.transition = `all 0.6s cubic-bezier(0.1, 0.5, 0.5, 1)`;
+            // Improvement: Speed scales with power (100% power = 0.3s, 0% power = 0.8s)
+            const shotSpeed = 0.8 - (power / 200);
+            puck.style.transition = `all ${shotSpeed}s cubic-bezier(0.1, 0.5, 0.5, 1)`;
             
+            // Goalie Logic Improvement:
             setTimeout(() => {
-                const laziness = (Math.random() * 80 - 40); 
-                goalie.style.left = (tx - 22 + laziness) + 'px';
-                goalie.style.top = Math.max(60, Math.min(150, ty - 30)) + 'px';
-                setTimeout(() => checkResult(tx, ty), 300);
-            }, 300); 
+                const laziness = (Math.random() * 60 - 30); 
+                let targetG = tx - 22 + laziness;
+                
+                // Keep goalie strictly inside the net width (100px to 500px)
+                targetG = Math.max(110, Math.min(445, targetG));
+                
+                goalie.style.left = targetG + 'px';
+                goalie.style.top = '100px'; // Goalie stays on the line
+                
+                setTimeout(() => checkResult(tx, ty), shotSpeed * 500);
+            }, 100); 
 
             puck.style.left = (tx - 10) + 'px';
             puck.style.top = (ty - 10) + 'px';
@@ -166,40 +181,56 @@
             const gx = parseFloat(goalie.style.left) + 22;
             const gy = parseFloat(goalie.style.top) + 30;
             const dist = Math.hypot(px - gx, py - gy);
-            const inNet = px > 100 && px < 500 && py > 10 && py < 230;
+            
+            // Net boundaries
+            const inNet = px > 105 && px < 495 && py > 15 && py < 225;
 
-            if (dist < 35) {
-                msg.textContent = "🧤 Saved! Try the corners!";
+            if (dist < 38) {
+                msg.textContent = "🧤 SAVED BY THE KEEPER!";
             } else if (inNet) {
                 score++;
-                msg.textContent = "🚨 GOAL!! NICE SHOT!";
+                msg.textContent = "🚨 GOAL!! WHAT A RIP!";
             } else {
-                msg.textContent = "❌ Out of the net!";
+                msg.textContent = "❌ WIDE OF THE NET!";
             }
 
             document.getElementById('current').textContent = score;
+            
             setTimeout(() => {
                 powerBar.style.width = '0%';
-                reset();
-                if (shotsTaken === 10) endGame();
+                if (shotsTaken === 10) {
+                    endGame();
+                } else {
+                    resetPuck();
+                }
             }, 1000);
         }
 
-        function reset() {
+        function resetPuck() {
             puck.style.transition = 'none';
-            puck.style.left = '290px'; puck.style.top = '350px';
-            goalie.style.top = '140px'; goalie.style.left = '277px';
+            puck.style.left = '290px'; 
+            puck.style.top = '350px';
+            goalie.style.top = '140px'; 
+            goalie.style.left = '277px';
             isShooting = false;
         }
 
         function endGame() {
             if (score > record) localStorage.setItem('hockey_easy_v1', score);
-            alert(`SESSION COMPLETE\nSCORE: ${score}/10`);
-            location.reload();
+            
+            // Requirement: Only play music if 10 shots taken and at least 1 goal
+            if (score >= 1) {
+                msg.textContent = "🏆 CHAMPION!";
+                bgMusic.play().catch(e => console.log("Audio play blocked by browser"));
+            } else {
+                msg.textContent = "GAME OVER. NO GOALS SCORED.";
+            }
+
+            setTimeout(() => {
+                alert(`SESSION COMPLETE\nSCORE: ${score}/10\n${score >= 1 ? "Enjoy the music!" : "Better luck next time!"}`);
+                location.reload();
+            }, 3000); // Give a moment for the music to start before the alert hits
         }
     </script>
-    <div class="footer">
-        Avis & DeBus | v1.0.0 PRO
-    </div>
 </body>
 </html>
