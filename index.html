@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Easy Hockey Shootout</title>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #eef2f3; color: #333; display: flex; flex-direction: column; align-items: center; user-select: none; margin: 0; padding: 20px; }
+        #stats { width: 600px; display: flex; justify-content: space-between; background: #fff; padding: 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); margin-bottom: 10px; border: 2px solid #3498db; }
+        #rink { 
+            width: 600px; height: 400px; background: #fff; border: 5px solid #3498db; 
+            position: relative; cursor: crosshair; overflow: hidden; border-radius: 20px;
+        }
+        #net { 
+            width: 400px; height: 220px; border: 8px solid #e74c3c; border-bottom: none;
+            position: absolute; top: 10px; left: 100px; background: rgba(231, 76, 60, 0.05);
+        }
+        #goalie { 
+            width: 45px; height: 60px; background: #2c3e50; border-radius: 5px; 
+            position: absolute; top: 140px; left: 277px; z-index: 10;
+            transition: all 0.4s ease-out; /* Slow and predictable */
+        }
+        #puck { 
+            width: 22px; height: 22px; background: #000; border-radius: 50%; 
+            position: absolute; bottom: 30px; left: 289px; z-index: 5;
+        }
+        #power-container { width: 610px; height: 12px; background: #ddd; margin-top: 15px; border-radius: 10px; overflow: hidden; }
+        #power-bar { width: 0%; height: 100%; background: #2ecc71; }
+        .val { color: #2980b9; font-weight: bold; }
+        #msg { margin-top: 15px; font-size: 1.5rem; font-weight: 800; color: #34495e; }
+    </style>
+</head>
+<body>
+
+    <div id="stats">
+        <div>Goals: <span id="current" class="val">0</span> / 10</div>
+        <div style="color: #27ae60; letter-spacing: 1px;">EASY MODE</div>
+        <div>Best: <span id="record" class="val">0</span></div>
+    </div>
+
+    <div id="rink" onmousedown="startCharge()" onmouseup="releaseShot(event)">
+        <div id="net"></div>
+        <div id="goalie"></div>
+        <div id="puck"></div>
+    </div>
+
+    <div id="power-container"><div id="power-bar"></div></div>
+    <div id="msg">Click anywhere in the red net!</div>
+
+    <script>
+        let score = 0, shotsTaken = 0, power = 0, isCharging = false, isShooting = false;
+        let chargeInterval;
+
+        const goalie = document.getElementById('goalie');
+        const puck = document.getElementById('puck');
+        const powerBar = document.getElementById('power-bar');
+        const msg = document.getElementById('msg');
+
+        let record = localStorage.getItem('hockey_easy_v1') || 0;
+        document.getElementById('record').textContent = record;
+
+        function startCharge() {
+            if (isShooting || shotsTaken >= 10) return;
+            isCharging = true;
+            power = 0;
+            chargeInterval = setInterval(() => {
+                if (power < 100) { power += 4; powerBar.style.width = power + '%'; }
+            }, 25);
+        }
+
+        function releaseShot(e) {
+            if (!isCharging) return;
+            clearInterval(chargeInterval);
+            isCharging = false;
+            isShooting = true;
+            shotsTaken++;
+
+            const rect = document.getElementById('rink').getBoundingClientRect();
+            let tx = e.clientX - rect.left;
+            let ty = e.clientY - rect.top;
+
+            puck.style.transition = `all 0.6s cubic-bezier(0.1, 0.5, 0.5, 1)`;
+            
+            // Goalie is now much slower to react (300ms delay)
+            setTimeout(() => {
+                // He often guesses slightly wrong
+                const laziness = (Math.random() * 80 - 40); 
+                goalie.style.left = (tx - 22 + laziness) + 'px';
+                goalie.style.top = Math.max(60, Math.min(150, ty - 30)) + 'px';
+
+                setTimeout(() => checkResult(tx, ty), 300);
+            }, 300); 
+
+            puck.style.left = (tx - 11) + 'px';
+            puck.style.top = (ty - 11) + 'px';
+        }
+
+        function checkResult(px, py) {
+            const gx = parseFloat(goalie.style.left) + 22;
+            const gy = parseFloat(goalie.style.top) + 30;
+            const dist = Math.hypot(px - gx, py - gy);
+            
+            // Huge Net Area
+            const inNet = px > 100 && px < 500 && py > 10 && py < 230;
+
+            if (dist < 35) { // Tiny goalie hit-zone
+                msg.textContent = "🧤 Saved! Try the corners!";
+                msg.style.color = "#7f8c8d";
+            } else if (inNet) {
+                score++;
+                msg.textContent = "🚨 GOAL!! NICE SHOT!";
+                msg.style.color = "#27ae60";
+            } else {
+                msg.textContent = "❌ Out of the net!";
+                msg.style.color = "#e67e22";
+            }
+
+            document.getElementById('current').textContent = score;
+            setTimeout(() => {
+                powerBar.style.width = '0%';
+                reset();
+                if (shotsTaken === 10) endGame();
+            }, 1000);
+        }
+
+        function reset() {
+            puck.style.transition = 'none';
+            puck.style.left = '289px'; puck.style.top = '350px';
+            goalie.style.top = '140px'; goalie.style.left = '277px';
+            isShooting = false;
+        }
+
+        function endGame() {
+            if (score > record) localStorage.setItem('hockey_easy_v1', score);
+            alert(`Game Over! Score: ${score}/10`);
+            location.reload();
+        }
+    </script>
+</body>
+</html>
